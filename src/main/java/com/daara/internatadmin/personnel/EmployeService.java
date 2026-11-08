@@ -5,8 +5,11 @@ import com.daara.internatadmin.common.DuplicateEntityException;
 import com.daara.internatadmin.common.MatriculeGenerator;
 import com.daara.internatadmin.common.PrintActionResponse;
 import com.daara.internatadmin.common.TransactionalRetry;
+import com.daara.internatadmin.finance.paiementsalaire.PaiementSalaireService;
+import com.daara.internatadmin.finance.paiementsalaire.dto.SalaireSuiviResponse;
 import com.daara.internatadmin.personnel.dto.CreateEmployeRequest;
 import com.daara.internatadmin.personnel.dto.EmployeResponse;
+import com.daara.internatadmin.personnel.dto.EmployeStatsResponse;
 import com.daara.internatadmin.personnel.dto.UpdateEmployeRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -141,5 +144,17 @@ public class EmployeService {
                 .orElseThrow(() -> new IllegalArgumentException("Employé introuvable : " + id));
         return new PrintActionResponse(employe.getId(), "Impression du certificat enregistrée pour " + employe.getFullName());
     }
-    // getStats(...) ajoute avec T03 (depend du module finance pour le suivi des salaires)
+    public EmployeStatsResponse getStats(PaiementSalaireService paiementSalaireService) {
+        LocalDate now = LocalDate.now();
+
+        long actifs = employeRepository.findByStatus(StatutEmploye.ACTIF).size();
+        long conge = employeRepository.findByStatus(StatutEmploye.EN_CONGE).size();
+        long anciens = employeRepository.findByStatus(StatutEmploye.ANCIEN).size();
+
+        List<SalaireSuiviResponse> suivi = paiementSalaireService.getSuiviMensuel(now.getYear(), now.getMonthValue(), "ALL");
+        long payes = suivi.stream().filter(s -> s.statut().equals("PAYE")).count();
+        long restants = suivi.stream().filter(s -> s.statut().equals("IMPAYE")).count();
+
+        return new EmployeStatsResponse(actifs, conge, anciens, payes, restants);
+    }
 }
