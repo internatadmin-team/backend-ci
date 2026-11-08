@@ -1,6 +1,7 @@
 package com.daara.internatadmin.personnel;
 
 import com.daara.internatadmin.common.PrintActionResponse;
+import com.daara.internatadmin.finance.paiementsalaire.PaiementSalaireService;
 import com.daara.internatadmin.personnel.dto.*;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -18,6 +19,7 @@ import java.util.List;
 public class EmployeController {
 
     private final EmployeService employeService;
+    private final PaiementSalaireService paiementSalaireService;
 
     @PostMapping
     public ResponseEntity<EmployeResponse> create(
@@ -75,5 +77,9 @@ public class EmployeController {
     public ResponseEntity<PrintActionResponse> recordCertificatePrint(@PathVariable Long id) {
         return ResponseEntity.ok(employeService.recordCertificatePrint(id));
     }
-    // Endpoint /stats ajoute avec T03 (depend du module finance pour le suivi des salaires)
+    @GetMapping("/stats")
+    public ResponseEntity<EmployeStatsResponse> getStats() {
+        return ResponseEntity.ok(employeService.getStats(paiementSalaireService));
+    }
+
 }

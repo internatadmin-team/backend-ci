@@ -2,6 +2,7 @@ package com.daara.internatadmin.enfant;
 
 import com.daara.internatadmin.common.PrintActionResponse;
 import com.daara.internatadmin.enfant.dto.*;
+import com.daara.internatadmin.finance.paiementenfant.PaiementEnfantService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import java.util.List;
 public class EnfantController {
 
     private final EnfantService enfantService;
+    private final PaiementEnfantService paiementEnfantService;
 
     @PostMapping
     public ResponseEntity<EnfantResponse> create(
@@ -75,5 +77,8 @@ public class EnfantController {
     public ResponseEntity<EnfantResponse> getByMatricule(@PathVariable String matricule) {
         return ResponseEntity.ok(enfantService.getByMatricule(matricule));
     }
-    // Endpoint /stats ajoute avec T03 (depend du module finance pour les impayes)
+    @GetMapping("/stats")
+    public ResponseEntity<EnfantStatsResponse> getStats() {
+        return ResponseEntity.ok(enfantService.getStats(paiementEnfantService));
+    }
 }

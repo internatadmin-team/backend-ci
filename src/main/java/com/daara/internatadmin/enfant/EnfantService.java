@@ -7,7 +7,9 @@ import com.daara.internatadmin.common.PrintActionResponse;
 import com.daara.internatadmin.common.TransactionalRetry;
 import com.daara.internatadmin.enfant.dto.CreateEnfantRequest;
 import com.daara.internatadmin.enfant.dto.EnfantResponse;
+import com.daara.internatadmin.enfant.dto.EnfantStatsResponse;
 import com.daara.internatadmin.enfant.dto.UpdateEnfantRequest;
+import com.daara.internatadmin.finance.paiementenfant.PaiementEnfantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -173,5 +175,20 @@ public class EnfantService {
 
         return toResponse(enfant);
     }
-    // getStats(...) ajoute avec T03 (depend du module finance pour le nombre d'impayes)
+    public EnfantStatsResponse getStats(PaiementEnfantService paiementEnfantService) {
+        LocalDate now = LocalDate.now();
+        LocalDate debutMois = now.withDayOfMonth(1);
+        LocalDate finMois = now.withDayOfMonth(now.lengthOfMonth());
+
+        long actifs = enfantRepository.findByStatus(StatutEnfant.ACTIF).size();
+        long sortis = enfantRepository.findByStatus(StatutEnfant.SORTI).size();
+        long vacances = enfantRepository.findByStatus(StatutEnfant.EN_VACANCES).size();
+        long nouveaux = enfantRepository.countByEntryDateBetween(debutMois, finMois);
+
+        long impayes = paiementEnfantService.getSuiviMensuel(now.getYear(), now.getMonthValue(), "ALL").stream()
+                .filter(s -> !s.statutPaiement().equals("PAYE"))
+                .count();
+
+        return new EnfantStatsResponse(actifs, sortis, vacances, nouveaux, impayes);
+    }
 }
