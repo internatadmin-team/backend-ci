@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Suppressions OWASP Dependency-Check : aucune entree pour le moment.
+  Format d'une entree (a n'ajouter qu'avec une justification et apres verification
+  qu'il s'agit bien d'un faux positif) :
+
+  <suppress>
+     <notes>Pourquoi cette CVE ne s'applique pas ici</notes>
+     <packageUrl regex="true">^pkg:maven/groupe/artefact@.*$</packageUrl>
+     <cve>CVE-AAAA-NNNNN</cve>
+  </suppress>
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+</suppressions>

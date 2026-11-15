@@ -1,0 +1,2 @@
+# Vulnerabilites acceptees temporairement : aucune entree sans justification ni date d'expiration
+# (format : CVE-AAAA-NNNN exp:AAAA-MM-JJ). Une entree expiree redevient bloquante pour le pipeline.
