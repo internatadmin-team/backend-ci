@@ -6,7 +6,7 @@
 //   - credentials :
 //       dockerhub-credentials : utilisateur et jeton d'acces Docker Hub ;
 //       nvd-api-key           : texte secret, cle de l'API NVD, seulement si RUN_DEPCHECK est coche ;
-//       sonar-token           : texte secret, seulement si RUN_SONAR est coche.
+//       slack-webhook-url     : texte secret, optionnel, pour la notification Slack de fin de build.
 //
 // Les outils (JDK 21, Trivy) tournent dans des conteneurs ephemeres : l'espace de travail y est monte au meme
 // chemin que sur l'hote, et le dossier persistant ~/.cache/internatadmin-ci de l'hote sert de HOME (TOOL_HOME),
@@ -65,16 +65,14 @@ pipeline {
     triggers {
         // webhook GitHub si Jenkins est joignable, sinon scrutation du depot
         githubPush()
-        pollSCM('H/5 * * * *')
+        pollSCM('H/1 * * * *')
     }
 
     parameters {
         booleanParam(name: 'BUILD_ALL', defaultValue: false, description: 'Tout executer meme sans changement du code')
         booleanParam(name: 'RUN_DEPCHECK', defaultValue: true, description: 'Analyse des dependances OWASP Dependency-Check')
         string(name: 'DC_FAIL_CVSS', defaultValue: '9', description: 'Score CVSS a partir duquel OWASP Dependency-Check fait echouer le build')
-        booleanParam(name: 'RUN_SONAR', defaultValue: false, description: 'Analyse SonarQube (serveur et credential sonar-token requis)')
-        string(name: 'SONAR_HOST_URL', defaultValue: 'http://host.docker.internal:9000', description: 'URL du serveur SonarQube')
-        booleanParam(name: 'TRIGGER_DEPLOY', defaultValue: false, description: 'Declencher le job de deploiement apres le push')
+        booleanParam(name: 'TRIGGER_DEPLOY', defaultValue: true, description: 'Declencher le job de deploiement apres le push')
         string(name: 'DEPLOY_JOB', defaultValue: 'deployment-cd', description: 'Job Jenkins du depot deployment-cd')
     }
 
@@ -85,7 +83,6 @@ pipeline {
         // HOME des conteneurs outils, adosse a ~/.cache/internatadmin-ci sur l'hote
         TOOL_HOME = '/ci-home'
         DC_VERSION = '12.2.2'
-        SONAR_PLUGIN_VERSION = '5.0.0.4389'
         DOCKERHUB_USER = 'abdoulaye940'
         DOCKERHUB_REPO = 'daara-backend'
         IMAGE_REPO = "${DOCKERHUB_USER}/${DOCKERHUB_REPO}"
@@ -148,17 +145,6 @@ pipeline {
                             '-DsuppressionFiles=owasp-suppressions.xml ' +
                             "-Dformats=HTML,JSON -DfailBuildOnCVSS=${params.DC_FAIL_CVSS} " +
                             '-DossindexAnalyzerEnabled=false')
-                }
-            }
-        }
-
-        stage('SonarQube') {
-            when { expression { params.RUN_SONAR && env.HAS_CHANGES == 'true' } }
-            steps {
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    runTool(env.BUILD_IMAGE, '--add-host host.docker.internal:host-gateway -e SONAR_TOKEN',
-                            "./mvnw -B org.sonarsource.scanner.maven:sonar-maven-plugin:${SONAR_PLUGIN_VERSION}:sonar " +
-                            "-Dsonar.host.url=${params.SONAR_HOST_URL} -Dsonar.projectKey=internatadmin-monolithe")
                 }
             }
         }
@@ -239,10 +225,24 @@ pipeline {
             }
         }
         success {
-            echo "Build reussi : commit ${env.GIT_SHA}, version ${VERSION}, code modifie : ${env.HAS_CHANGES}"
+            script { notify("Build backend-ci reussi : commit ${env.GIT_SHA}, version ${VERSION}, code modifie : ${env.HAS_CHANGES}") }
         }
         failure {
-            echo 'Build en echec : voir le stage en rouge et les rapports archives'
+            script { notify("Build backend-ci en echec : build #${env.BUILD_NUMBER}, voir ${env.BUILD_URL}") }
         }
+    }
+}
+
+// Notification Slack si le credential est configure, sinon seulement dans le journal Jenkins.
+def notify(String message) {
+    echo message
+    try {
+        withCredentials([string(credentialsId: 'slack-webhook-url', variable: 'SLACK_WEBHOOK_URL')]) {
+            writeFile file: 'slack-payload.json', text: "{\"text\": \"${message}\"}"
+            sh 'curl -fsS -X POST -H "Content-Type: application/json" --data-binary @slack-payload.json "$SLACK_WEBHOOK_URL" > /dev/null'
+            sh 'rm -f slack-payload.json'
+        }
+    } catch (ignored) {
+        echo 'Notification Slack non configuree (credential slack-webhook-url absent) : notification journalisee seulement.'
     }
 }
