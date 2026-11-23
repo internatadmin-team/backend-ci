@@ -65,7 +65,7 @@ pipeline {
     triggers {
         // webhook GitHub si Jenkins est joignable, sinon scrutation du depot
         githubPush()
-        pollSCM('H/5 * * * *')
+        pollSCM('* * * * *')
     }
 
     parameters {
